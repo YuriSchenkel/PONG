@@ -74,12 +74,54 @@ class PongGame:
     def __init__(self, tela):
         self.tela = tela
         self.clock = pygame.time.Clock()
+        self.win_score = 2
 
         self.p1 = Paddle(15, ALTURA // 2 - 30)
         self.p2 = Paddle(LARGURA - 25, ALTURA // 2 - 30)
 
         self.ball = Ball()
         self.score = Score()
+
+    def resetar_partida(self):
+        self.p1.rect.y = ALTURA // 2 - 30
+        self.p2.rect.y = ALTURA // 2 - 30
+        self.ball.reset()
+        self.score = Score()
+
+    def menu_principal(self):
+        while True:
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    self.quit()
+                if evento.type == pygame.KEYDOWN and evento.key == pygame.K_SPACE:
+                    return
+
+            self.tela.fill(PRETO)
+
+            font_titulo = pygame.font.SysFont(None, 72)
+            titulo = font_titulo.render("Pong", True, BRANCO)
+            titulo_rect = titulo.get_rect(center=(LARGURA // 2, ALTURA // 3))
+            self.tela.blit(titulo, titulo_rect)
+
+            font_info = pygame.font.SysFont(None, 30)
+            tempo = pygame.time.get_ticks()
+            if tempo % 2000 < 1000:
+                info = font_info.render("Pressione ESPACO para jogar", True, BRANCO)
+                info_rect = info.get_rect(center=(LARGURA // 2, ALTURA // 2))
+                self.tela.blit(info, info_rect)
+
+            pygame.display.flip()
+            self.clock.tick(FPS)
+
+    def mostrar_vencedor(self, vencedor):
+        fonte = pygame.font.SysFont(None, 52)
+        texto = fonte.render(f"Player {vencedor} venceu!", True, BRANCO)
+        texto_rect = texto.get_rect(center=(LARGURA // 2, ALTURA // 2))
+
+        self.tela.fill(PRETO)
+        self.tela.blit(texto, texto_rect)
+        pygame.display.flip()
+        pygame.time.wait(2000)
 
     def events(self):
         for e in pygame.event.get():
@@ -109,6 +151,18 @@ class PongGame:
         if keys[pygame.K_DOWN]:
             self.p1.down()
 
+        if self.score.p1 >= self.win_score:
+            self.mostrar_vencedor(1)
+            self.resetar_partida()
+            return True
+
+        if self.score.p2 >= self.win_score:
+            self.mostrar_vencedor(2)
+            self.resetar_partida()
+            return True
+
+        return False
+
     def draw(self):
         self.tela.fill(PRETO)
 
@@ -121,10 +175,15 @@ class PongGame:
 
     def run(self):
         while True:
-            self.events()
-            self.update()
-            self.draw()
-            self.clock.tick(FPS)
+            self.menu_principal()
+            self.resetar_partida()
+
+            while True:
+                self.events()
+                if self.update():
+                    break
+                self.draw()
+                self.clock.tick(FPS)
 
     def quit(self):
         pygame.quit()
