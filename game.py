@@ -1,4 +1,5 @@
 import pygame
+import random
 import sys
 
 LARGURA = 800
@@ -28,26 +29,61 @@ class Paddle:
 class Ball:
     def __init__(self):
         self.size = 7
+        self.speed_x = 5
+        self.max_vertical_speed = 8
         self.reset()
 
     def reset(self):
         self.x = LARGURA // 2
         self.y = ALTURA // 2
-        self.vx = 5
-        self.vy = 5
+        self.vx = random.choice((-self.speed_x, self.speed_x))
+        self.vy = random.choice((-4, -3, 3, 4))
+
+    def aplicar_variacao_vertical(self):
+        self.vy += random.randint(-2, 2)
+
+        if abs(self.vy) < 2:
+            self.vy = random.choice((-2, 2))
+
+        self.vy = max(-self.max_vertical_speed, min(self.vy, self.max_vertical_speed))
+
+    def rebater_parede(self):
+        self.vy *= -1
+        self.aplicar_variacao_vertical()
+        self.vx += random.choice((-1, 0, 1))
+
+        if abs(self.vx) < self.speed_x:
+            self.vx = self.speed_x if self.vx >= 0 else -self.speed_x
 
     def move(self):
         self.x += self.vx
         self.y += self.vy
 
-        if self.y <= 0 or self.y >= ALTURA:
-            self.vy *= -1
+        if self.y - self.size <= 0:
+            self.y = self.size
+            self.rebater_parede()
+
+        if self.y + self.size >= ALTURA:
+            self.y = ALTURA - self.size
+            self.rebater_parede()
 
     def collide(self, p1, p2):
-        rect = pygame.Rect(self.x, self.y, self.size, self.size)
+        rect = pygame.Rect(
+            self.x - self.size,
+            self.y - self.size,
+            self.size * 2,
+            self.size * 2,
+        )
 
-        if rect.colliderect(p1.rect) or rect.colliderect(p2.rect):
-            self.vx *= -1
+        if rect.colliderect(p1.rect) and self.vx < 0:
+            self.x = p1.rect.right + self.size
+            self.vx = abs(self.vx)
+            self.aplicar_variacao_vertical()
+
+        if rect.colliderect(p2.rect) and self.vx > 0:
+            self.x = p2.rect.left - self.size
+            self.vx = -abs(self.vx)
+            self.aplicar_variacao_vertical()
 
     def draw(self, tela):
         pygame.draw.circle(tela, BRANCO, (self.x, self.y), self.size)
