@@ -88,34 +88,31 @@ class Ball:
         self.vy += random.uniform(-1.0, 1.0)
         self.vy = max(-self.max_vertical_speed, min(self.vy, self.max_vertical_speed))
 
-    def collide(self, p1, p2):
+    def collide(self, p1, p2, som_bate=None):
         rect = pygame.Rect(
             self.x - self.size,
             self.y - self.size,
             self.size * 2,
             self.size * 2,
         )
+        colidiu = False
 
         if rect.colliderect(p1.rect) and self.vx < 0:
             self.x = p1.rect.right + self.size
             self.vx = abs(self.vx)
             self.rebater_raquete(p1)
+            colidiu = True
 
         if rect.colliderect(p2.rect) and self.vx > 0:
             self.x = p2.rect.left - self.size
             self.vx = -abs(self.vx)
             self.rebater_raquete(p2)
-        if self.y <= 0 or self.y >= ALTURA:
-            self.vy *= -1
+            colidiu = True
 
-    def collide(self, p1, p2, som_bate):
-        rect = pygame.Rect(self.x, self.y, self.size, self.size)
-        if rect.colliderect(p1.rect) or rect.colliderect(p2.rect):
-            self.vx *= -1
-            return True
-        return False
-            if som_bate:
-                som_bate.play()
+        if colidiu and som_bate:
+            som_bate.play()
+
+        return colidiu
 
     def draw(self, tela):
         pygame.draw.circle(tela, self.cor, (int(self.x), int(self.y)), self.size)
@@ -238,7 +235,7 @@ class PongGame:
 
         for bola in self.bolas:
             bola.move()
-            colidiu = bola.collide(self.p1, self.p2)
+            colidiu = bola.collide(self.p1, self.p2, self.som_bate)
 
             if bola.real:
                 bola_real = bola
@@ -247,11 +244,15 @@ class PongGame:
 
                 if bola.x <= 0:
                     self.score.point(2)
+                    if self.som_gol:
+                        self.som_gol.play()
                     bola.reset()
                     remover = [b for b in self.bolas if not b.real]
                     self.ultimo_fragmento = agora
                 elif bola.x >= LARGURA:
                     self.score.point(1)
+                    if self.som_gol:
+                        self.som_gol.play()
                     bola.reset()
                     remover = [b for b in self.bolas if not b.real]
                     self.ultimo_fragmento = agora
@@ -271,25 +272,6 @@ class PongGame:
                 self.p2.down()
             else:
                 self.p2.up()
-        self.ball.move()
-        self.ball.collide(self.p1, self.p2, self.som_bate)
-
-        if self.ball.x <= 0:
-            self.score.point(2)
-            if self.som_gol:
-                self.som_gol.play()
-            self.ball.reset()
-
-        if self.ball.x >= LARGURA:
-            self.score.point(1)
-            if self.som_gol:
-                self.som_gol.play()
-            self.ball.reset()
-
-        if self.p2.rect.centery < self.ball.y:
-            self.p2.down()
-        else:
-            self.p2.up()
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
