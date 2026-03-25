@@ -28,11 +28,22 @@ class Paddle:
 
 
 class Ball:
-    def __init__(self):
+    _CORES_FAKE = [
+        (255, 80, 80), (80, 255, 80), (80, 180, 255),
+        (255, 220, 50), (255, 100, 255), (100, 255, 220),
+    ]
+
+    def __init__(self, x=None, y=None, vx=None, vy=None, real=True):
         self.size = 7
         self.speed_x = 5
         self.max_vertical_speed = 8
         self.reset()
+        self.real = real
+        self.cor = BRANCO if real else random.choice(Ball._CORES_FAKE)
+        if x is not None:
+            self.x, self.y, self.vx, self.vy = x, y, vx, vy
+        else:
+            self.reset()
 
     def reset(self):
         self.x = LARGURA // 2
@@ -94,16 +105,20 @@ class Ball:
             self.x = p2.rect.left - self.size
             self.vx = -abs(self.vx)
             self.rebater_raquete(p2)
+        if self.y <= 0 or self.y >= ALTURA:
+            self.vy *= -1
+
     def collide(self, p1, p2, som_bate):
         rect = pygame.Rect(self.x, self.y, self.size, self.size)
-
         if rect.colliderect(p1.rect) or rect.colliderect(p2.rect):
             self.vx *= -1
+            return True
+        return False
             if som_bate:
                 som_bate.play()
 
     def draw(self, tela):
-        pygame.draw.circle(tela, BRANCO, (self.x, self.y), self.size)
+        pygame.draw.circle(tela, self.cor, (int(self.x), int(self.y)), self.size)
 
 
 class Score:
@@ -132,8 +147,9 @@ class PongGame:
         self.p1 = Paddle(15, ALTURA // 2 - 30)
         self.p2 = Paddle(LARGURA - 25, ALTURA // 2 - 30)
 
-        self.ball = Ball()
+        self.bolas = [Ball()]
         self.score = Score()
+        self.ultimo_fragmento = 0
 
         base_path = os.path.dirname(__file__)
         try:
@@ -161,8 +177,17 @@ class PongGame:
     def resetar_partida(self):
         self.p1.rect.y = ALTURA // 2 - 30
         self.p2.rect.y = ALTURA // 2 - 30
-        self.ball.reset()
+        self.bolas = [Ball()]
         self.score = Score()
+        self.ultimo_fragmento = 0
+
+    def fragmentar(self, bola_real):
+        cores = random.sample(Ball._CORES_FAKE, 3)
+        for i, dvy in enumerate([-3, 3, -5]):
+            fake = Ball(bola_real.x, bola_real.y, bola_real.vx, bola_real.vy + dvy, real=False)
+            fake.cor = cores[i]
+            self.bolas.append(fake)
+        self.ultimo_fragmento = pygame.time.get_ticks()
 
     def menu_principal(self):
         while True:
@@ -205,6 +230,47 @@ class PongGame:
                 self.quit()
 
     def update(self):
+        agora = pygame.time.get_ticks()
+        pode_fragmentar = (agora - self.ultimo_fragmento) >= 5000
+        deve_fragmentar = False
+        bola_real = None
+        remover = []
+
+        for bola in self.bolas:
+            bola.move()
+            colidiu = bola.collide(self.p1, self.p2)
+
+            if bola.real:
+                bola_real = bola
+                if colidiu and pode_fragmentar:
+                    deve_fragmentar = True
+
+                if bola.x <= 0:
+                    self.score.point(2)
+                    bola.reset()
+                    remover = [b for b in self.bolas if not b.real]
+                    self.ultimo_fragmento = agora
+                elif bola.x >= LARGURA:
+                    self.score.point(1)
+                    bola.reset()
+                    remover = [b for b in self.bolas if not b.real]
+                    self.ultimo_fragmento = agora
+            else:
+                if bola.x < -20 or bola.x > LARGURA + 20:
+                    remover.append(bola)
+
+        for b in remover:
+            if b in self.bolas:
+                self.bolas.remove(b)
+
+        if deve_fragmentar and bola_real:
+            self.fragmentar(bola_real)
+
+        if bola_real:
+            if self.p2.rect.centery < bola_real.y:
+                self.p2.down()
+            else:
+                self.p2.up()
         self.ball.move()
         self.ball.collide(self.p1, self.p2, self.som_bate)
 
@@ -248,7 +314,8 @@ class PongGame:
 
         self.p1.draw(self.tela)
         self.p2.draw(self.tela)
-        self.ball.draw(self.tela)
+        for bola in self.bolas:
+            bola.draw(self.tela)
         self.score.draw(self.tela)
 
         pygame.display.flip()
