@@ -1,6 +1,7 @@
 import pygame
 import random
 import sys
+import os
 
 LARGURA = 800
 ALTURA = 600
@@ -53,12 +54,14 @@ class Ball:
         if self.y <= 0 or self.y >= ALTURA:
             self.vy *= -1
 
-    def collide(self, p1, p2):
+    def collide(self, p1, p2, som_bate):
         rect = pygame.Rect(self.x, self.y, self.size, self.size)
         if rect.colliderect(p1.rect) or rect.colliderect(p2.rect):
             self.vx *= -1
             return True
         return False
+            if som_bate:
+                som_bate.play()
 
     def draw(self, tela):
         pygame.draw.circle(tela, self.cor, (int(self.x), int(self.y)), self.size)
@@ -85,7 +88,7 @@ class PongGame:
     def __init__(self, tela):
         self.tela = tela
         self.clock = pygame.time.Clock()
-        self.win_score = 2
+        self.win_score = 10
 
         self.p1 = Paddle(15, ALTURA // 2 - 30)
         self.p2 = Paddle(LARGURA - 25, ALTURA // 2 - 30)
@@ -93,6 +96,29 @@ class PongGame:
         self.bolas = [Ball()]
         self.score = Score()
         self.ultimo_fragmento = 0
+
+        base_path = os.path.dirname(__file__)
+        try:
+            self.som_bate = pygame.mixer.Sound(
+                os.path.join(base_path, "sounds", "batida.mp3")
+            )
+            self.som_gol = pygame.mixer.Sound(
+                os.path.join(base_path, "sounds", "gol.mp3")
+            )
+            self.som_bate.set_volume(0.3)
+            self.som_gol.set_volume(0.5)
+        except:
+            self.som_bate = None
+            self.som_gol = None
+
+        try:
+            pygame.mixer.music.load(
+                os.path.join(base_path, "sounds", "musica.mp3")
+            )
+            pygame.mixer.music.set_volume(0.3)
+            pygame.mixer.music.play(-1)
+        except:
+            pass
 
     def resetar_partida(self):
         self.p1.rect.y = ALTURA // 2 - 30
@@ -191,6 +217,25 @@ class PongGame:
                 self.p2.down()
             else:
                 self.p2.up()
+        self.ball.move()
+        self.ball.collide(self.p1, self.p2, self.som_bate)
+
+        if self.ball.x <= 0:
+            self.score.point(2)
+            if self.som_gol:
+                self.som_gol.play()
+            self.ball.reset()
+
+        if self.ball.x >= LARGURA:
+            self.score.point(1)
+            if self.som_gol:
+                self.som_gol.play()
+            self.ball.reset()
+
+        if self.p2.rect.centery < self.ball.y:
+            self.p2.down()
+        else:
+            self.p2.up()
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
