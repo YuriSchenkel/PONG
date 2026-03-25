@@ -67,6 +67,15 @@ class Ball:
             self.y = ALTURA - self.size
             self.rebater_parede()
 
+    def rebater_raquete(self, paddle):
+        offset = (self.y - paddle.rect.centery) / (paddle.rect.height / 2)
+        offset = max(-1.0, min(1.0, offset))
+        self.vy = offset * self.max_vertical_speed
+        if abs(self.vy) < 1.5:
+            self.vy = random.choice((-1.5, 1.5))
+        self.vy += random.uniform(-1.0, 1.0)
+        self.vy = max(-self.max_vertical_speed, min(self.vy, self.max_vertical_speed))
+
     def collide(self, p1, p2):
         rect = pygame.Rect(
             self.x - self.size,
@@ -78,12 +87,12 @@ class Ball:
         if rect.colliderect(p1.rect) and self.vx < 0:
             self.x = p1.rect.right + self.size
             self.vx = abs(self.vx)
-            self.aplicar_variacao_vertical()
+            self.rebater_raquete(p1)
 
         if rect.colliderect(p2.rect) and self.vx > 0:
             self.x = p2.rect.left - self.size
             self.vx = -abs(self.vx)
-            self.aplicar_variacao_vertical()
+            self.rebater_raquete(p2)
 
     def draw(self, tela):
         pygame.draw.circle(tela, BRANCO, (self.x, self.y), self.size)
